@@ -33,7 +33,7 @@ def main(
 
     scorer = CobaldScorer(
         semclass_taxonomy,
-        semclasses_out_of_taxonomy={None, 'END_TO_TAKE_PLACE'},
+        semclasses_out_of_taxonomy={None},
         lemma_weights=lemma_weights,
         feats_weights=feats_weights
     )
