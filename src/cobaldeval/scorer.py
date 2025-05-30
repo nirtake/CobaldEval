@@ -119,7 +119,7 @@ class CobaldScorer:
         if not self.taxonomy:
             raise RuntimeError("Taxonomy is missing")
         if not self.taxonomy.has_semclass(gold["semclass"]):
-            raise ValueError(f"Unknown gold semclass encountered: {gold["semclass"]}")
+            raise ValueError(f"Unknown gold semclass encountered: {gold['semclass']}")
         if not self.taxonomy.has_semclass(test["semclass"]):
             return 0.
 
