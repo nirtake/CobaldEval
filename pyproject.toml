@@ -1,9 +1,13 @@
+[build-system]
+requires = ["setuptools", "wheel"]
+build-backend = "setuptools.build_meta"
+
 [project]
 name = "cobaldeval"
-version = "1.0.0"
+version = "1.0.4"
 description = "CoBaLD evaluation script"
 requires-python = ">=3.12"
-license = {file = "LICENSE"}
+license-files = ["LICENSE"]
 dependencies = [
     "numpy>=1.20.0",
     "pandas>=2.2.3",
@@ -11,6 +15,12 @@ dependencies = [
     "tqdm>=4.67.1"
 ]
 
-[build-system]
-requires = ["setuptools", "wheel"]
-build-backend = "setuptools.build_meta"
+[project.scripts]
+cobaldeval = "cobaldeval.evaluate:main"  # Clean import path!
+
+[tool.setuptools]
+packages = ["cobaldeval"]
+package-dir = {"" = "src"}  # Critical: Tells setuptools to look in src/
+
+[tool.setuptools.package-data]
+"cobaldeval" = ["res/*"]  # Include package resources
