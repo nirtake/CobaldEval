@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "cobaldeval"
-version = "1.0.4"
+version = "1.0.6"
 description = "CoBaLD evaluation script"
 requires-python = ">=3.12"
 license-files = ["LICENSE"]
@@ -14,6 +14,9 @@ dependencies = [
     "scikit-learn>=1.6.1",
     "tqdm>=4.67.1"
 ]
+
+[project.urls]
+Repository = "https://github.com/CobaldAnnotation/CobaldEval"
 
 [project.scripts]
 cobaldeval = "cobaldeval.evaluate:main"  # Clean import path!
