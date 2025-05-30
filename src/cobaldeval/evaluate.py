@@ -57,7 +57,7 @@ def main():
         default=OPTIONAL_TAGS,
         choices=OPTIONAL_TAGS,
         help=(
-            "Tags to include in dataset, e.g. `heads deprels deps`."
+            "Tags to include in dataset, e.g. `head deprel deps`. "
             "By default, all CoBaLD tags are used."
         )
     )
