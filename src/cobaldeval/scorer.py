@@ -173,13 +173,17 @@ class CobaldScorer:
                 )
             except Exception as e:
                 raise RuntimeError(f"Sentence {gold_sentence.get('sent_id', '?')}:\n{e}")
+            
+            test_columns = {tag for token in test_tokens for tag in token}
+            gold_columns = {tag for token in gold_tokens for tag in token}
+            columns = test_columns | gold_columns
 
             for test_token, gold_token in zip(
                 test_tokens_aligned, gold_tokens_aligned, strict=True
             ):
                 for score_name, column, score_fn in scoring_info:
                     # Allow partial evaluation (i.e. evaluation on subset of columns)
-                    if column not in set(test_token) | set(gold_token):
+                    if column not in columns:
                         continue
 
                     # Token mismatch
