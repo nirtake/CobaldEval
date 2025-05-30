@@ -3,8 +3,8 @@ import argparse
 import json
 
 from DatasetTools.src.parsing import parse_incr, OPTIONAL_TAGS
-from src.scorer import CobaldScorer
-from src.taxonomy import Taxonomy
+from cobaldeval.scorer import CobaldScorer
+from cobaldeval.taxonomy import Taxonomy
 
 
 def load_dict_from_json(json_filepath: str) -> dict:
