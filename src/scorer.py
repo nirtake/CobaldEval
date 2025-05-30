@@ -12,9 +12,12 @@ from .taxonomy import Taxonomy
 NULL = "#NULL"
 
 
-def jaccard_score(a: set, b: set, aggregate_fn: callable = len) -> float:
-    return aggregate_fn(a & b) / aggregate_fn(a | b)
-
+def is_range_id(x: str) -> bool:
+    try:
+        a, b = x.split('-')
+        return a.isdecimal() and b.isdecimal()
+    except ValueError:
+        return False
 
 def parse_feats(feats: str) -> dict:
     field_dict = {}
@@ -22,6 +25,9 @@ def parse_feats(feats: str) -> dict:
         key, value = item.split('=')
         field_dict[key] = value
     return field_dict
+
+def jaccard_score(a: set, b: set, aggregate_fn: callable = len) -> float:
+    return aggregate_fn(a & b) / aggregate_fn(a | b)
 
 
 class CobaldScorer:
@@ -38,6 +44,9 @@ class CobaldScorer:
         self.feats_weights = feats_weights
 
     def score_lemma(self, test: str, gold: str) -> float:
+        if test["lemma"] is None or gold["lemma"] is None:
+            return float(test["lemma"] == gold["lemma"])
+
         normalize = lambda word: word.lower().replace('ё', 'е')
         score = normalize(test["lemma"]) == normalize(gold["lemma"])
 
@@ -103,9 +112,6 @@ class CobaldScorer:
         return float(test["deepslot"] == gold["deepslot"])
 
     def score_semclass(self, test: dict, gold: dict) -> float:
-        # FIXME:
-        return float(test["semclass"] == gold["semclass"])
-
         # If gold semclass is out of taxomony, simply compare strings
         if gold["semclass"] in self.semclasses_out_of_taxonomy:
             return float(test["semclass"] == gold["semclass"])
@@ -151,21 +157,14 @@ class CobaldScorer:
         for test_sentence, gold_sentence in tqdm(
             zip(test_sentences, gold_sentences, strict=True), file=sys.stdout
         ):
-            if test_sentence["sent_id"] != gold_sentence["sent_id"]:
-                raise RuntimeError(
-                    f"Test and gold sentence id mismatch: "
-                    f"test sentence id={test_sentence['sent_id']}, "
-                    f"gold sentence id={gold_sentence['sent_id']}"
-                )
-            assert test_sentence.keys() == gold_sentence.keys()
-            sentence_columns = test_sentence.keys()
-
             test_tokens = self._extract_tokens(test_sentence)
             gold_tokens = self._extract_tokens(gold_sentence)
+
             # Test and gold sentence may have different lengths due to null tokens, so align them.
             test_tokens_aligned, gold_tokens_aligned = self._align_sentences(
                 test_tokens, gold_tokens
             )
+            sentence_columns = test_sentence.keys() | gold_sentence.keys()
 
             for test_token, gold_token in zip(
                 test_tokens_aligned, gold_tokens_aligned, strict=True
@@ -188,8 +187,8 @@ class CobaldScorer:
                     gold_scores[score_name].append(gold_score)
 
                     # Track nulls separately
-                    test_nulls.append(test_token["word"] == NULL)
-                    gold_nulls.append(gold_token["word"] == NULL)
+                    test_nulls.append(test_token["word"] == NULL if test_token else 0)
+                    gold_nulls.append(gold_token["word"] == NULL if gold_token else 0)
 
         average_scores = {
             name: np.mean(test_scores[name]) / np.mean(gold_scores[name])
@@ -205,13 +204,15 @@ class CobaldScorer:
 
     @staticmethod
     def _extract_tokens(sentence: dict) -> list[dict]:
-        tokens = [{} for _ in range(len(sentence["word"]))]
+        tokens = [{} for _ in range(len(sentence["id"]))]
         for column, values in sentence.items():
             # Skip metadata keys.
             if not isinstance(values, list):
                 continue
             for token_idx, value in enumerate(values):
                 tokens[token_idx][column] = value
+        # Filter out range tokens.
+        tokens = list(filter(lambda token: not is_range_id(token["id"]), tokens))
         return tokens
 
     @staticmethod
@@ -228,27 +229,32 @@ class CobaldScorer:
         lhs_aligned, rhs_aligned = [], []
 
         i, j = 0, 0
-        last_i, last_j = len(lhs), len(rhs)
 
-        while i < last_i or j < last_j:
+        i_exhausted, j_exhausted = False, False
+        while not i_exhausted and not j_exhausted:
             if lhs[i]["word"] == rhs[j]["word"]:
                 lhs_aligned.append(lhs[i])
                 rhs_aligned.append(rhs[j])
-                i = min(i + 1, last_i)
-                j = min(j + 1, last_j)
+                i += 1
+                j += 1
             elif lhs[i]["word"] == NULL and rhs[j]["word"] != NULL:
                 lhs_aligned.append(lhs[i])
                 rhs_aligned.append(None)
-                i = min(i + 1, last_i)
+                i += 1
             elif lhs[i]["word"] != NULL and rhs[j]["word"] == NULL:
                 lhs_aligned.append(None)
                 rhs_aligned.append(rhs[j])
-                j = min(j + 1, last_j)
+                j += 1
             else:
                 raise RuntimeError(
                     f"Test-gold words mismatch: {lhs[i]['word']} != {rhs[j]['word']}"
                 )
+            if len(lhs) <= i:
+                i_exhausted = True
+                i = len(lhs) - 1
+            if len(rhs) <= j:
+                j_exhausted = True
+                j = len(rhs) - 1
 
         assert len(lhs_aligned) == len(rhs_aligned)
-        assert len(lhs_aligned) == max(len(lhs), len(rhs))
         return lhs_aligned, rhs_aligned

@@ -2,7 +2,7 @@ import os
 import argparse
 import json
 
-from DatasetTools.parsing import parse_incr, OPTIONAL_TAGS
+from DatasetTools.src.parsing import parse_incr, OPTIONAL_TAGS
 from src.scorer import CobaldScorer
 from src.taxonomy import Taxonomy
 
@@ -39,8 +39,16 @@ def main(
     )
 
     print("Evaluating")
-    test_sentences = parse_incr(test_filepath, optional_tags_to_parse)
-    gold_sentences = parse_incr(gold_filepath, optional_tags_to_parse)
+    test_sentences = parse_incr(
+        test_filepath,
+        optional_tags_to_parse or [],
+        validate=False
+    )
+    gold_sentences = parse_incr(
+        gold_filepath,
+        optional_tags_to_parse or [],
+        validate=False
+    )
     scores = scorer.score_sentences(test_sentences, gold_sentences)
 
     return scores
@@ -83,7 +91,7 @@ if __name__ == "__main__":
     )
     parser.add_argument(
         "--tags",
-        nargs="+",
+        nargs="?",
         type=str,
         default=OPTIONAL_TAGS,
         choices=OPTIONAL_TAGS,
