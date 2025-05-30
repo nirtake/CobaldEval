@@ -2,7 +2,7 @@ import os
 import argparse
 import json
 
-from DatasetTools.src.parsing import parse_incr, OPTIONAL_TAGS
+from .parsing import parse_incr, OPTIONAL_TAGS
 from .scorer import CobaldScorer
 from .taxonomy import Taxonomy
 

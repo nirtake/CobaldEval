@@ -157,21 +157,29 @@ class CobaldScorer:
         for test_sentence, gold_sentence in tqdm(
             zip(test_sentences, gold_sentences, strict=True), file=sys.stdout
         ):
-            test_tokens = self._extract_tokens(test_sentence)
-            gold_tokens = self._extract_tokens(gold_sentence)
-
+            # Filter out range tokens.
+            test_tokens = [
+                token for token in test_sentence["tokens"]
+                if not is_range_id(token["id"])
+            ]
+            gold_tokens = [
+                token for token in gold_sentence["tokens"]
+                if not is_range_id(token["id"])
+            ]
             # Test and gold sentence may have different lengths due to null tokens, so align them.
-            test_tokens_aligned, gold_tokens_aligned = self._align_sentences(
-                test_tokens, gold_tokens
-            )
-            sentence_columns = test_sentence.keys() | gold_sentence.keys()
+            try:
+                test_tokens_aligned, gold_tokens_aligned = self._align_sentences(
+                    test_tokens, gold_tokens
+                )
+            except Exception as e:
+                raise RuntimeError(f"Sentence {gold_sentence.get('sent_id', '?')}:\n{e}")
 
             for test_token, gold_token in zip(
                 test_tokens_aligned, gold_tokens_aligned, strict=True
             ):
                 for score_name, column, score_fn in scoring_info:
                     # Allow partial evaluation (i.e. evaluation on subset of columns)
-                    if column not in sentence_columns:
+                    if column not in set(test_token) | set(gold_token):
                         continue
 
                     # Token mismatch
@@ -201,19 +209,6 @@ class CobaldScorer:
             assert 0. <= score <= 1.
 
         return average_scores
-
-    @staticmethod
-    def _extract_tokens(sentence: dict) -> list[dict]:
-        tokens = [{} for _ in range(len(sentence["id"]))]
-        for column, values in sentence.items():
-            # Skip metadata keys.
-            if not isinstance(values, list):
-                continue
-            for token_idx, value in enumerate(values):
-                tokens[token_idx][column] = value
-        # Filter out range tokens.
-        tokens = list(filter(lambda token: not is_range_id(token["id"]), tokens))
-        return tokens
 
     @staticmethod
     def _align_sentences(lhs: list[dict], rhs: list[dict]) -> tuple[list]:
