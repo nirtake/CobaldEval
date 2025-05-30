@@ -13,48 +13,7 @@ def load_dict_from_json(json_filepath: str) -> dict:
     return data
 
 
-def main(
-    test_filepath: str,
-    gold_filepath: str,
-    taxonomy_file: str,
-    lemma_weights_file: str,
-    feats_weights_file: str,
-    optional_tags_to_parse: list[str]
-) -> tuple[float]:
-
-    print(f"Loading taxonomy from {taxonomy_file}")
-    semclass_taxonomy = Taxonomy(taxonomy_file)
-
-    print(f"Loading lemma weights from {lemma_weights_file}")
-    lemma_weights = load_dict_from_json(lemma_weights_file)
-
-    print(f"Loading feats weights from {feats_weights_file}")
-    feats_weights = load_dict_from_json(feats_weights_file)
-
-    scorer = CobaldScorer(
-        semclass_taxonomy,
-        semclasses_out_of_taxonomy={None},
-        lemma_weights=lemma_weights,
-        feats_weights=feats_weights
-    )
-
-    print("Evaluating")
-    test_sentences = parse_incr(
-        test_filepath,
-        optional_tags_to_parse or [],
-        validate=False
-    )
-    gold_sentences = parse_incr(
-        gold_filepath,
-        optional_tags_to_parse or [],
-        validate=False
-    )
-    scores = scorer.score_sentences(test_sentences, gold_sentences)
-
-    return scores
-
-
-if __name__ == "__main__":
+def main():
     parser = argparse.ArgumentParser(description="CoBaLD evaluation script")
 
     parser.add_argument(
@@ -65,10 +24,12 @@ if __name__ == "__main__":
     parser.add_argument(
         'gold_file',
         type=str,
-        help=(
-            "Gold file in CoBaLD format with true tags.\n"
-            "For example, train.conllu."
-        )
+        help="Gold file in CoBaLD format with true tags."
+    )
+    parser.add_argument(
+        'output_file',
+        type=str,
+        help='Output JSON file where scoring results will be written to.'
     )
     script_dir = os.path.dirname(__file__)
     parser.add_argument(
@@ -100,24 +61,42 @@ if __name__ == "__main__":
             "By default, all CoBaLD tags are used."
         )
     )
-    parser.add_argument(
-        '--output_precision',
-        type=int,
-        help="Output scores precision",
-        default=4
-    )
     args = parser.parse_args()
 
-    scores = main(
-        args.test_file,
-        args.gold_file,
-        args.taxonomy_file,
-        args.lemma_weights_file,
-        args.feats_weights_file,
-        args.tags,
+    print(f"Loading taxonomy from {args.taxonomy_file}")
+    semclass_taxonomy = Taxonomy(args.taxonomy_file)
+
+    print(f"Loading lemma weights from {args.lemma_weights_file}")
+    lemma_weights = load_dict_from_json(args.lemma_weights_file)
+
+    print(f"Loading feats weights from {args.feats_weights_file}")
+    feats_weights = load_dict_from_json(args.feats_weights_file)
+
+    scorer = CobaldScorer(
+        semclass_taxonomy,
+        semclasses_out_of_taxonomy={None},
+        lemma_weights=lemma_weights,
+        feats_weights=feats_weights
     )
 
-    print()
-    print(f"======== SCORES =========")
-    for score_name, score_value in scores.items():
-        print(f"{score_name}: {score_value:.{args.output_precision}}")
+    print("Evaluating")
+    test_sentences = parse_incr(
+        args.test_file,
+        args.tags or [],
+        validate=False
+    )
+    gold_sentences = parse_incr(
+        args.gold_file,
+        args.tags or [],
+        validate=False
+    )
+    scores = scorer.score_sentences(test_sentences, gold_sentences)
+
+    with open(args.output_file, 'w') as f:
+        json.dump(scores, f)
+
+    print(f"Done, results written to {args.output_file}")
+
+
+if __name__ == "__main__":
+    main()
